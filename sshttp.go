@@ -114,7 +114,6 @@ func createServerConfig(clientAuth bool, ca, crt, key string) (*tls.Config, erro
 
 	conf := &tls.Config{
 		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    roots,
 	}
 
