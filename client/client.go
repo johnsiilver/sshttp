@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -19,6 +22,7 @@ var (
 	listenOn = flag.String("listenOn", "", "The host:port to listen to accept connections and forward to the proxy")
 	proxy    = flag.String("proxy", "", "The host:port to connect to")
 	insecure = flag.Bool("insecure", false, "Don't do a certificate verification on the far side")
+	tlsPath  = flag.String("tlsPath", "", "If set, is the path to a directory containing ca.pem, client.crt, client.key. Cannot be set with --insecure")
 )
 
 func flagVerify() {
@@ -27,6 +31,9 @@ func flagVerify() {
 		panic("--listenOn not set")
 	case *proxy:
 		panic("--proxy not set")
+	}
+	if *insecure && *tlsPath != "" {
+		panic("cannot set --tlsPath and --insecure")
 	}
 }
 
@@ -39,8 +46,21 @@ func main() {
 		panic(err)
 	}
 
-	if *insecure {
+	switch {
+	case *insecure:
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	case *tlsPath != "":
+		conf, err := tlsConfig(
+			filepath.Join(*tlsPath, "ca.pem"),
+			filepath.Join(*tlsPath, "client.crt"),
+			filepath.Join(*tlsPath, "client.key"),
+		)
+
+		if err != nil {
+			panic(err)
+		}
+
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = conf
 	}
 
 	for {
@@ -88,4 +108,26 @@ func handle(conn net.Conn) {
 	}()
 
 	wg.Wait()
+}
+
+func tlsConfig(ca, crt, key string) (*tls.Config, error) {
+	caCertPEM, err := ioutil.ReadFile(ca)
+	if err != nil {
+		return nil, err
+	}
+
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(caCertPEM)
+	if !ok {
+		panic("failed to parse root certificate")
+	}
+
+	cert, err := tls.LoadX509KeyPair(crt, key)
+	if err != nil {
+		return nil, err
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      roots,
+	}, nil
 }
