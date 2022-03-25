@@ -48,3 +48,5 @@ ssh user@127.0.0.1 -p 25001
 If the client proxy is on port 25001, it would forward the SSH traffic to the remote proxy which would connect you to the SSH daemon.
 
 Note: This seems to work great, but it is pretty bare bones.
+
+Note: The goal of this is to forward SSH, but in fact it should proxy about anything.
