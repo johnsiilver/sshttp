@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	listenOn = flag.String("listenOn", "", "The host:port to listen to accept connections and forward to the proxy")
+	listenOn = flag.String("listenOn", "127.0.0.1:25001", "The host:port to listen to accept connections and forward to the proxy")
 	proxy    = flag.String("proxy", "", "The host:port to connect to")
 	insecure = flag.Bool("insecure", false, "Don't do a certificate verification on the far side")
 	tlsPath  = flag.String("tlsPath", "", "If set, is the path to a directory containing ca.pem, client.crt, client.key. Cannot be set with --insecure")
@@ -40,6 +40,7 @@ func flagVerify() {
 func main() {
 	flag.Parse()
 	flagVerify()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	ln, err := net.Listen("tcp", *listenOn)
 	if err != nil {
@@ -77,11 +78,16 @@ func main() {
 func handle(conn net.Conn) {
 	defer conn.Close()
 
+	log.Println("recieved connection from: ", conn.RemoteAddr())
+	defer log.Println("closed connection from: ", conn.RemoteAddr())
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	c, _, err := websocket.Dial(ctx, fmt.Sprintf("wss://%s", *proxy), nil)
 	if err != nil {
-		panic(err)
+		log.Println("could not dial remote server: ", err)
+		return
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
