@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -29,6 +30,12 @@ var (
 
 	aclConfigPath = flag.String("aclConfig", "", "The path to the yaml file holding our IP ACL list")
 	httpACLS      = flag.Bool("httpACLS", false, "If set, the ACLS in --aclConfig will be applied at the HTTP layer to allow using header information from proxies. Otherwise, ACLS are applied at the network layer")
+)
+
+var (
+	// ErrIsProbe simply indicates that we had a probe connection, so we completed TCP handshake but don't allow
+	// TLS.
+	ErrIsProbe = errors.New("is probe")
 )
 
 func flagVerify() {
@@ -81,14 +88,6 @@ func main() {
 	if err != nil {
 		log.Fatal("failure to create TLS config: %s", err)
 	}
-
-	/*
-		ln, err := tls.Listen("tcp", *listenOn, tlsConf)
-		if err != nil {
-			log.Fatal("listen failed: %s", err.Error())
-		}
-		defer ln.Close()
-	*/
 
 	var inner net.Listener
 	if !*httpACLS {
@@ -147,6 +146,13 @@ func (a *aclListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connection's remote address(%s) could not be split: %s", conn.RemoteAddr().String(), err)
 	}
+
+	if a.acls.isProbe(host) {
+		log.Println("TCP probe(%s) connection", host)
+		conn.Close()
+		return nil, ErrIsProbe
+	}
+
 	if err := a.acls.ipAuth(host); err != nil {
 		return nil, err
 	}
@@ -264,8 +270,23 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // to taken an IP and detect if it is allowed. Must call validate() in
 // order to compile the ACLS.
 type aclConfig struct {
-	IPACLs   IPACLs `yaml:"IPACLs"`
-	ipRanger cidranger.Ranger
+	TCPProbes   TCPProbes `yaml:"TCPProbes"`
+	IPACLs      IPACLs    `yaml:"IPACLs"`
+	ipRanger    cidranger.Ranger
+	probeRanger cidranger.Ranger
+}
+
+// isProbe returns true if the IP represents a probe.
+func (a *aclConfig) isProbe(ip string) bool {
+	if len(a.TCPProbes) == 0 {
+		return false
+	}
+
+	ok, err := a.probeRanger.Contains(net.ParseIP(ip))
+	if err != nil {
+		return false
+	}
+	return ok
 }
 
 // ipAuth should be used when the IP is represented by a string.
@@ -276,7 +297,7 @@ func (a *aclConfig) ipAuth(ip string) error {
 		return nil
 	}
 
-	ok, err := a.ranger().Contains(net.ParseIP(ip))
+	ok, err := a.ipRanger.Contains(net.ParseIP(ip))
 	if err != nil {
 		return err
 	}
@@ -304,7 +325,7 @@ func (a *aclConfig) httpAuth(r *http.Request) error {
 		return e
 	}
 
-	ok, err := a.ranger().Contains(ip)
+	ok, err := a.ipRanger.Contains(ip)
 	if err != nil {
 		return err
 	}
@@ -336,12 +357,15 @@ func (a *aclConfig) validate() error {
 			return fmt.Errorf("inserting %s/%d into acls has an issue: %s", acl.IP, *acl.Netmask, err)
 		}
 	}
-	return nil
-}
 
-// ranger returns the cideranger.Ranger for use.
-func (a *aclConfig) ranger() cidranger.Ranger {
-	return a.ipRanger
+	a.probeRanger = cidranger.NewPCTrieRanger()
+	for _, p := range a.TCPProbes {
+		if err := a.probeRanger.Insert(cidranger.NewBasicRangerEntry(*p.network)); err != nil {
+			return fmt.Errorf("inserting %s/%d into probes had an issue: %s", p.IP, *p.Netmask, err)
+		}
+	}
+
+	return nil
 }
 
 // IPACLs represent a list of acls that we restrict traffic to.
@@ -354,6 +378,39 @@ func (i *IPACLs) validate() error {
 			return err
 		}
 		(*i)[x] = acl
+	}
+	return nil
+}
+
+// TCPProbes is a list of all TCP probes.
+type TCPProbes []TCPProbe
+
+func (t TCPProbes) validate() error {
+	for _, p := range t {
+		if err := p.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// TCPProbe represents a TCPProbe we want to allow to do TCP connections, but not make TLS connections
+type TCPProbe struct {
+	IP      string `yaml:"IP"`
+	Netmask *int   `yaml:"Netmask"`
+
+	network *net.IPNet
+}
+
+func (t *TCPProbe) validate() error {
+	if t.Netmask == nil {
+		return fmt.Errorf("a TCPProbe cannot have a non-set Netmask")
+	}
+
+	var err error
+	_, t.network, err = net.ParseCIDR(fmt.Sprintf("%s/%d", t.IP, *t.Netmask))
+	if err != nil {
+		return fmt.Errorf("a TCPProbe (%s/%d) is invalid: %s", t.IP, *t.Netmask, err)
 	}
 	return nil
 }

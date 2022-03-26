@@ -32,13 +32,14 @@ There are also a few optional flags:
 Client:
 
 ```bash
-proxy_client --proxy="127.0.0.1:62528" --insecure
+client_proxy --proxy="127.0.0.1:62528" --insecure
 ```
 
 There are also a few optional flags:
 
 * --insecure can be used if you don't want to validate the server's certificate.
 * --tlsPath points to a directory where client.crt and client.key would be located. This is needed if the server has --clientAuth=true set.
+* --config points to a YAML config file where you can setup mulitple proxy endoints. See the code in `client_proxy.go` for the format.
 
 To connect via SSH, you can simply do:
 
@@ -47,6 +48,39 @@ ssh user@127.0.0.1 -p 25001
 ```
 If the client proxy is on port 25001, it would forward the SSH traffic to the remote proxy which would connect you to the SSH daemon.
 
+## Issues
+
+### Key changes
+
+Since you are SSHing to a local IP address (you should use 127.0.0.1 or ::1), if you record a fingerprint and then change where what endpoint that points to in the future, you will get:
+
+```bash
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:wVACvS3hlG439Ab5Gby8OOuuTUBAwgkejtJiUQ6L/ZE.
+Please contact your system administrator.
+Add correct host key in /Users/whoever/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /Users/whatever/.ssh/known_hosts:46
+Host key for [127.0.0.1]:25001 has changed and you have requested strict checking.
+Host key verification failed.
+```
+
+This is fine if that is the case, you simply need to remove the fingerprint from the `known_hosts` file.
+
+## Notes
+
 Note: This seems to work great, but it is pretty bare bones.
 
 Note: The goal of this is to forward SSH, but in fact it should proxy about anything.
+
+## Future stuff
+
+These are all maybe things:
+
+* client ability to reload config file on changes and add/shutdown listeners
+
