@@ -72,11 +72,17 @@ Host key verification failed.
 
 This is fine if that is the case, you simply need to remove the fingerprint from the `known_hosts` file.
 
+## Why? and hasn't this been done before?
+
+I like to build stuff, and yeah, you can do this in other ways. Linux has proxytunnel that you can link with Apache to do it. I didn't spend a lot of time looking, but I'm sure we could come up with some clever ways to use existing things.
+
+I wanted something portable (this client and server will run on any OS) and as you can see with my repos, I like to play with stuff. This could used as the basis of a robust service that gives access to cloud resources with two-factor auth, a secure access service and secure client machine certificate auth.  So you could auth the machine then auth the user.  This is kinda what Google does with their GFE/Uberproxy(also called AccessProxy) stuff. They secure the machine with a certificate and the user can use that cert + password to retrieve another cert that allows you to do work for 23 hours.
+
 ## Notes
 
-Note: This seems to work great, but it is pretty bare bones.
+* Note: This seems to work great, but it is pretty bare bones.
 
-Note: The goal of this is to forward SSH, but in fact it should proxy about anything.
+* Note: The goal of this is to forward SSH, but in fact it should proxy anything.
 
 ## Future stuff
 
