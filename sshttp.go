@@ -86,19 +86,19 @@ func main() {
 		filepath.Join(*certPath, "server.key"),
 	)
 	if err != nil {
-		log.Fatal("failure to create TLS config: %s", err)
+		log.Fatalf("failure to create TLS config: %s", err)
 	}
 
 	var inner net.Listener
 	if !*httpACLS {
 		inner, err = newTCPListener(*listenOn, &aclConf)
 		if err != nil {
-			log.Fatal("listen failed: %s", err.Error())
+			log.Fatalf("listen failed: %s", err.Error())
 		}
 	} else {
 		inner, err = newTCPListener(*listenOn, nil)
 		if err != nil {
-			log.Fatal("listen failed: %s", err.Error())
+			log.Fatalf("listen failed: %s", err.Error())
 		}
 	}
 	ln := tls.NewListener(inner, tlsConf)
@@ -148,7 +148,7 @@ func (a *aclListener) Accept() (net.Conn, error) {
 	}
 
 	if a.acls.isProbe(host) {
-		log.Println("TCP probe(%s) connection", host)
+		log.Printf("TCP probe(%s) connection", host)
 		conn.Close()
 		return nil, ErrIsProbe
 	}
@@ -347,6 +347,11 @@ func (a *aclConfig) unmarshal(b []byte) error {
 // validate validates the acls and compiles them.
 func (a *aclConfig) validate() error {
 	err := a.IPACLs.validate()
+	if err != nil {
+		return err
+	}
+
+	err = a.TCPProbes.validate()
 	if err != nil {
 		return err
 	}
