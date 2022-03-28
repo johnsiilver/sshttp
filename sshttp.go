@@ -470,6 +470,7 @@ func getIPAddress(r *http.Request) net.IP {
 				// bad address, go to next
 				continue
 			}
+			log.Println("got realIP from header: ", realIP)
 			return realIP
 		}
 	}
@@ -480,7 +481,9 @@ func getIPAddress(r *http.Request) net.IP {
 	}
 	remoteIP := net.ParseIP(host)
 	if remoteIP.IsLoopback() || (!remoteIP.IsGlobalUnicast() || remoteIP.IsPrivate()) {
+		log.Println("the remote address was a loopback/private or not a global unicast: ", r.RemoteAddr)
 		return nil
 	}
+	log.Println("remote IP is: ", remoteIP)
 	return remoteIP
 }
