@@ -148,9 +148,10 @@ func (a *aclListener) Accept() (net.Conn, error) {
 	}
 
 	if a.acls.isProbe(host) {
+		// TODO(jdoak); Crap, if we don't hand back a conn that is usable, it causes the server to fail.
+		// We need to figure a way to allow this to happen, but deny TLS probing.
 		log.Printf("TCP probe(%s) connection", host)
-		conn.Close()
-		return nil, nil
+		return conn, nil
 	}
 
 	if err := a.acls.ipAuth(host); err != nil {
