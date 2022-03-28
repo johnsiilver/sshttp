@@ -150,7 +150,7 @@ func (a *aclListener) Accept() (net.Conn, error) {
 	if a.acls.isProbe(host) {
 		log.Printf("TCP probe(%s) connection", host)
 		conn.Close()
-		return nil, ErrIsProbe
+		return nil, nil
 	}
 
 	if err := a.acls.ipAuth(host); err != nil {
