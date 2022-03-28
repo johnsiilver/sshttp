@@ -366,7 +366,6 @@ func (a *aclConfig) validate() error {
 
 	a.probeRanger = cidranger.NewPCTrieRanger()
 	for _, p := range a.TCPProbes {
-		log.Println(p.network)
 		if err := a.probeRanger.Insert(cidranger.NewBasicRangerEntry(*p.network)); err != nil {
 			return fmt.Errorf("inserting %s/%d into probes had an issue: %s", p.IP, *p.Netmask, err)
 		}
@@ -481,7 +480,7 @@ func getIPAddress(r *http.Request) net.IP {
 	}
 	remoteIP := net.ParseIP(host)
 	if remoteIP.IsLoopback() || (!remoteIP.IsGlobalUnicast() || remoteIP.IsPrivate()) {
-		return remoteIP
+		return nil
 	}
-	return nil
+	return remoteIP
 }
