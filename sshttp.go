@@ -365,6 +365,7 @@ func (a *aclConfig) validate() error {
 
 	a.probeRanger = cidranger.NewPCTrieRanger()
 	for _, p := range a.TCPProbes {
+		log.Println(p.network)
 		if err := a.probeRanger.Insert(cidranger.NewBasicRangerEntry(*p.network)); err != nil {
 			return fmt.Errorf("inserting %s/%d into probes had an issue: %s", p.IP, *p.Netmask, err)
 		}
@@ -390,11 +391,12 @@ func (i *IPACLs) validate() error {
 // TCPProbes is a list of all TCP probes.
 type TCPProbes []TCPProbe
 
-func (t TCPProbes) validate() error {
-	for _, p := range t {
+func (t *TCPProbes) validate() error {
+	for x, p := range *t {
 		if err := p.validate(); err != nil {
 			return err
 		}
+		(*t)[x] = p
 	}
 	return nil
 }
