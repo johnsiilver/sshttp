@@ -31,11 +31,11 @@ var (
 )
 
 func flagVerify() {
-	switch "" {
-	case *listenOn:
+	if *listenOn == "" {
 		panic("--listenOn not set")
-	case *proxy:
-		panic("--proxy not set")
+	}
+	if *proxy == "" && *proxyConfig == "" {
+		panic("--proxy or --config must be set")
 	}
 	if *insecure && *tlsPath != "" {
 		panic("cannot set --tlsPath and --insecure")
@@ -230,20 +230,20 @@ func (p Proxies) validate() error {
 // Proxy details information about how to connect to a remote server using sshttp.
 type Proxy struct {
 	// Name is the name of this proxy connection.
-	Name string
+	Name string `yaml:"Name"`
 	// Desc is a decription of this connection.
-	Desc string
+	Desc string `yaml:"Desc"`
 	// ListenOn is the local host:port to listen on. It is suggested
 	// to be locahost to avoid having someone tunnel through the machine.
-	ListenOn string
+	ListenOn string `yaml:"ListenOn"`
 	// Proxy is the remote proxy host:port to connect to.
-	Proxy string
+	Proxy string `yaml:"Proxy"`
 	// Insecure indicates not to validate the remote TLS certificate.
 	// Really think about if you want to do this.
-	Insecure bool
+	Insecure bool `yaml:"Insecure"`
 	// TLSPath is the path to ca.pem, client.crt, client.key that the client
 	// will send to the server to authenticate itself. If this is blank, no certs are sent.
-	TLSPath string
+	TLSPath string `yaml:"TLSPath"`
 }
 
 func (p Proxy) validate() error {
