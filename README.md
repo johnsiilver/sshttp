@@ -78,15 +78,32 @@ I like to build stuff, and yeah, you can do this in other ways. Linux has proxyt
 
 I wanted something portable (this client and server will run on any OS) and as you can see with my repos, I like to play with stuff. This could used as the basis of a robust service that gives access to cloud resources with two-factor auth, a secure access service and secure client machine certificate auth.  So you could auth the machine then auth the user.  This is kinda what Google does with their GFE/Uberproxy(also called AccessProxy) stuff. They secure the machine with a certificate and the user can use that cert + password to retrieve another cert that allows you to do work for 23 hours.
 
+## Why is there a fork of net/http and github.com/nhooyr/websocket ?
+
+I wanted to do ACLs at the net.Listener. This is convienent because then I can allow a TCP health check to complete, but not give access to the TLS headers.
+
+This means I can block non-approved connections to prevent them from reading the TLS headers. The less information for an unauthorized user, the better. And if I am behind a load-balancer, it doesn't need more information unless I want to allow it to have it. Simply make the health check.
+
+Unfortunately, http.Server exits serving if the net.Listener.Accept() call returns an error and the error isn't a net.Error with .Temporary() == true. 
+
+Now I know what you are thinking, just return your own temporary error. Great idea, except it stalls server listening for up to 1 second. Basically I'd be DOSing myself if anyone moderately attacked.
+
+And because websocket relies on things like http.Request/http.Response, now it needs to be patched. The "replace" directive didn't help here. So it was imported and modified for new import paths.
+
+You might be thinking, apply ACLs based on IP at the server (aka the kernel). I could do that or use some ebpf rules.
+
+But this gives flexability. You can do no ACLs, ACLs at the server (choose your flavor), ACLs in the application or ACLs in both.  
+
 ## Notes
 
 * Note: This seems to work great, but it is pretty bare bones.
 
 * Note: The goal of this is to forward SSH, but in fact it should proxy anything.
 
+* Note: This repo doesn't honor any compatability of imports from this package to another package at this time.
+
 ## Future stuff
 
 These are all maybe things:
 
 * client ability to reload config file on changes and add/shutdown listeners
-

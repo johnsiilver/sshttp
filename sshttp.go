@@ -4,14 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
-	"net/http"
+	"github.com/johnsiilver/sshttp/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +18,7 @@ import (
 
 	"github.com/go-yaml/yaml"
 	"github.com/yl2chen/cidranger"
-	"nhooyr.io/websocket"
+	"github.com/johnsiilver/sshttp/internal/websocket"
 )
 
 var (
@@ -30,12 +29,6 @@ var (
 
 	aclConfigPath = flag.String("aclConfig", "", "The path to the yaml file holding our IP ACL list")
 	httpACLS      = flag.Bool("httpACLS", false, "If set, the ACLS in --aclConfig will be applied at the HTTP layer to allow using header information from proxies. Otherwise, ACLS are applied at the network layer")
-)
-
-var (
-	// ErrIsProbe simply indicates that we had a probe connection, so we completed TCP handshake but don't allow
-	// TLS.
-	ErrIsProbe = errors.New("is probe")
 )
 
 func flagVerify() {
@@ -148,14 +141,15 @@ func (a *aclListener) Accept() (net.Conn, error) {
 	}
 
 	if a.acls.isProbe(host) {
-		// TODO(jdoak); Crap, if we don't hand back a conn that is usable, it causes the server to fail.
-		// We need to figure a way to allow this to happen, but deny TLS probing.
+		conn.Close()
 		log.Printf("TCP probe(%s) connection", host)
-		return conn, nil
+		return nil, http.ErrIgnore
 	}
 
 	if err := a.acls.ipAuth(host); err != nil {
-		return nil, err
+		conn.Close()
+		log.Println("blocking connection from: ", host)
+		return nil, http.ErrIgnore
 	}
 	log.Println("accepting connection from: ", conn.RemoteAddr().String())
 	return conn, nil
