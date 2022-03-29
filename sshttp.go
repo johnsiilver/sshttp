@@ -140,6 +140,8 @@ func (a *aclListener) Accept() (net.Conn, error) {
 		return nil, fmt.Errorf("connection's remote address(%s) could not be split: %s", conn.RemoteAddr().String(), err)
 	}
 
+	// You may notice that really there is no difference between isProbe() and ipAuth(). That is true, but we want to
+	// give different outputs depending on which is hit, hence we do two checks.
 	if a.acls.isProbe(host) {
 		conn.Close()
 		log.Printf("TCP probe(%s) connection", host)

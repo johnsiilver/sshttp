@@ -52,7 +52,7 @@ If the client proxy is on port 25001, it would forward the SSH traffic to the re
 
 ### Key changes
 
-Since you are SSHing to a local IP address (you should use 127.0.0.1 or ::1), if you record a fingerprint and then change where what endpoint that points to in the future, you will get:
+Since you are SSHing to a local IP address (you should use 127.0.0.1 or ::1), if you record a fingerprint and then change the remote endpoint pointed at by the local host:port combination, you will get:
 
 ```bash
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
