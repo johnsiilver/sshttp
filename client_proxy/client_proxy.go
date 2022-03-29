@@ -98,13 +98,13 @@ func setupProxy(p Proxy) error {
 	}
 
 	switch {
-	case *insecure:
+	case p.Insecure:
 		trans.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	case *tlsPath != "":
+	case p.TLSPath != "":
 		conf, err := tlsConfig(
-			filepath.Join(*tlsPath, "ca.pem"),
-			filepath.Join(*tlsPath, "client.crt"),
-			filepath.Join(*tlsPath, "client.key"),
+			filepath.Join(p.TLSPath, "ca.pem"),
+			filepath.Join(p.TLSPath, "client.crt"),
+			filepath.Join(p.TLSPath, "client.key"),
 		)
 
 		if err != nil {
@@ -120,16 +120,16 @@ func setupProxy(p Proxy) error {
 				log.Println("connection accept error: ", err)
 				continue
 			}
-			go handle(conn, trans)
+			go handle(conn, trans, p)
 		}
 	}()
 	return nil
 }
 
-func handle(conn net.Conn, trans *http.Transport) {
+func handle(conn net.Conn, trans *http.Transport, p Proxy) {
 	defer conn.Close()
 
-	log.Println("recieved connection from: ", conn.RemoteAddr())
+	log.Println("received connection from: ", conn.RemoteAddr())
 	defer log.Println("closed connection from: ", conn.RemoteAddr())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -142,7 +142,7 @@ func handle(conn net.Conn, trans *http.Transport) {
 		CompressionMode: websocket.CompressionContextTakeover,
 	}
 
-	c, _, err := websocket.Dial(ctx, fmt.Sprintf("wss://%s", *proxy), opts)
+	c, _, err := websocket.Dial(ctx, fmt.Sprintf("wss://%s", p.Proxy), opts)
 	if err != nil {
 		log.Println("could not dial remote server: ", err)
 		return
