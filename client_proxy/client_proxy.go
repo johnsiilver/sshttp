@@ -27,7 +27,7 @@ var (
 	insecure = flag.Bool("insecure", false, "Don't do a certificate verification on the far side")
 	tlsPath  = flag.String("tlsPath", "", "If set, is the path to a directory containing ca.pem, client.crt, client.key. Cannot be set with --insecure")
 
-	proxyConfig = flag.String("config", "", "If set, uses a proxy config file an ignores other flags")
+	proxyConfig = flag.String("config", "", "If set, uses a proxy config file and ignores other flags")
 )
 
 func flagVerify() {
@@ -120,7 +120,10 @@ func setupProxy(p Proxy) error {
 				log.Println("connection accept error: ", err)
 				continue
 			}
-			go handle(conn, trans, p)
+			// Spin off a goroutine so that we can handle multiple connections on the same port.
+			go func() {
+				handle(conn, trans, p)
+			}()
 		}
 	}()
 	return nil
