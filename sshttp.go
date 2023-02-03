@@ -193,6 +193,7 @@ func createServerConfig(clientAuth bool, ca, crt, key string) (*tls.Config, erro
 	conf := &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientCAs:    roots,
+		MinVersion: tls.VersionTLS12,
 	}
 
 	if clientAuth {
